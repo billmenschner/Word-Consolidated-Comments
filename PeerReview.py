@@ -3,7 +3,7 @@
 # PeerReview.py -- Pulls MS Word comments from docx files and copies them into
 # consolidated file
 
-import os, shutil, tkinter as tk, glob, re
+import os, shutil, tkinter as tk, glob, re, zipfile
 from tkinter import filedialog
 from pathlib import Path
 
@@ -47,4 +47,12 @@ for current_name in os.listdir(file_path):
 #file and whether it's a document or comment file, and then iterate through
 #each of the files when adding the comments to the master file. 
     
+os.makedirs(file_path + '\\CopiedZip\\Extracted')
 
+for file in os.listdir(file_path +  '\\CopiedZip'):
+    if file == 'Testing.zip':
+        print('True')
+        extracted_file = zipfile.ZipFile(file_path + '/CopiedZip/' + file)
+        extracted_file.extract('word/document.xml', file_path + '/CopiedZip/')
+    else:
+        print('False')
