@@ -23,10 +23,10 @@ if data_folder_count == 0:
     
 #Check for the folder that will contain the zip files created from docx files. 
 #If it doesn't exist, create folder.
-newFolder = file_path + '\\CopiedZip'
+copied_folder = file_path + '/CopiedZip'
 if data_folder_count > 0:
-    if not os.path.exists(newFolder):
-        os.makedirs(newFolder)   
+    if not os.path.exists(copied_folder):
+        os.makedirs(copied_folder)   
         
 #Copy the docx files to the CopiedZip folder and save them as a zip file 
 #in that folder
@@ -40,19 +40,50 @@ for current_name in os.listdir(file_path):
         continue
     doc_name = working_name.group(1)
     new_file_name = doc_name + '.zip'
-    shutil.copy(file_path + '\\' +current_name, file_path + '\\CopiedZip\\' + new_file_name)
+    shutil.copy(file_path + '/' +current_name, copied_folder + '/' + new_file_name)
     
-#Extract contents of Zip files. Should I just extract the document and comment
-#files? I could extract them all to a new folder, give them the name of the 
-#file and whether it's a document or comment file, and then iterate through
-#each of the files when adding the comments to the master file. 
+#Create folder where files will be extracted.
     
-os.makedirs(file_path + '\\CopiedZip\\Extracted')
+os.makedirs(copied_folder + '/Extracted')
+extracted_folder = copied_folder + '/Extracted'
 
-for file in os.listdir(file_path +  '\\CopiedZip'):
-    if file == 'Testing.zip':
-        print('True')
-        extracted_file = zipfile.ZipFile(file_path + '/CopiedZip/' + file)
-        extracted_file.extract('word/document.xml', file_path + '/CopiedZip/')
-    else:
-        print('False')
+#Create folders based on zip file names and extract the documents and comments
+#files from the zip files into the new folders.
+
+for file in os.listdir(copied_folder):
+    if '.zip' in file:
+        os.makedirs(extracted_folder + '/' + os.path.splitext(file)[0])
+        new_folder = extracted_folder + '/' + os.path.splitext(file)[0]
+        extracted_file = zipfile.ZipFile(copied_folder + '/' + file)
+        extracted_file.extract('word/document.xml', new_folder)
+        extracted_file.extract('word/comments.xml', new_folder)
+
+#for file in os.listdir(copied_folder):
+#    print(file)
+#    if '.zip' in file:
+#        extracted_file = zipfile.ZipFile(copied_folder + '/' + file)
+#        for name in extracted_file.namelist():
+#            member = extracted_file.open(name)
+#            print(member)
+#            with open(os.path.basename(name), 'wb') as outfile:
+##                print(outfile)
+#                shutil.copyfileobj(member, outfile)
+
+#for file in os.listdir(copied_folder):
+#    if '.zip' in file:
+#        extracted_file = zipfile.ZipFile(copied_folder + '/' + file)
+#        extracted_file.extract('word/document.xml', extracted_folder)
+#        os.rename(extracted_folder + '/word/' + 'document.xml', extracted_folder + '/word/' + 'document1.xml')
+
+#for file in os.listdir(copied_folder):
+#    if '.zip' in file:
+#        file_path = os.path.join(copied_folder, file)
+#        with zipfile.ZipFile(file_path) as zf:
+#            for target_file in file_list:
+#                if target_file in zf.namelist():
+#                    target_name = (os.path.splitext(target_file)[0]+ '1' + ".xml")
+#                    target_path = os.path.join(extracted_folder, target_name)
+##                    print(target_name)
+##                    print(target_path)
+#                    with open(target_path, 'w') as f:
+#                        f.write(zf.read(target_file))
