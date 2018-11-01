@@ -6,6 +6,7 @@
 import os, shutil, tkinter as tk, glob, re, zipfile
 from tkinter import filedialog
 from pathlib import Path
+from lxml import etree
 
 #Start by having the user select the directory where the files are located
 root = tk.Tk()
@@ -49,41 +50,61 @@ extracted_folder = copied_folder + '/Extracted'
 
 #Create folders based on zip file names and extract the documents and comments
 #files from the zip files into the new folders.
+pulled_text = {}
+pulled_comments = {}
 
 for file in os.listdir(copied_folder):
     if '.zip' in file:
         os.makedirs(extracted_folder + '/' + os.path.splitext(file)[0])
         new_folder = extracted_folder + '/' + os.path.splitext(file)[0]
         extracted_file = zipfile.ZipFile(copied_folder + '/' + file)
-        extracted_file.extract('word/document.xml', new_folder)
-        extracted_file.extract('word/comments.xml', new_folder)
+        document = extracted_file.extract('word/document.xml', new_folder)
+        comments = extracted_file.extract('word/comments.xml', new_folder)
+        #Parse both the documents and comments documents and create the dictionary
+        #that will hold all of the information taken from the documents.
+        
+        document_root = etree.parse(document)
+        comments_root = etree.parse(comments)
+        
+        #Extract text from document based on Comment ID
+        
+        text_commentId = ''
+        document_text = ''
+        
+        for element in document_root.iter():
+            if element in document_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t'):
+                document_text += element.text
+            elif element in document_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}commentRangeStart'):
+                text_commentId = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}id')
+                document_text = ''
+            elif element in document_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}commentRangeEnd'):
+                pulled_text[text_commentId] = document_text
+        
+        #Extract Comment ID, comment, and author from comments.xml. Start running count
+        #that gets increased with each comment tag.
+        
+        comment_number = 0
+        commentId = ''
+        comment_text = ''
+        author = ''
+        
+        for element in comments_root.iter():
+            if element in comments_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}comment'):
+                if comment_number == 0:
+                    commentId = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}id')
+                    author = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}author')
+                    comment_number += 1
+                else:
+                    pulled_comments[comment_number] = commentId, author, comment_text, pulled_text[commentId]
+                    comment_number +=1
+                    commentId = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}id')
+                    author = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}author')
+                    comment_text = ''
+            elif element in comments_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t'):
+                comment_text += element.text
+        
 
-#for file in os.listdir(copied_folder):
-#    print(file)
-#    if '.zip' in file:
-#        extracted_file = zipfile.ZipFile(copied_folder + '/' + file)
-#        for name in extracted_file.namelist():
-#            member = extracted_file.open(name)
-#            print(member)
-#            with open(os.path.basename(name), 'wb') as outfile:
-##                print(outfile)
-#                shutil.copyfileobj(member, outfile)
+#Testing copying and pasting info from files.
+        
 
-#for file in os.listdir(copied_folder):
-#    if '.zip' in file:
-#        extracted_file = zipfile.ZipFile(copied_folder + '/' + file)
-#        extracted_file.extract('word/document.xml', extracted_folder)
-#        os.rename(extracted_folder + '/word/' + 'document.xml', extracted_folder + '/word/' + 'document1.xml')
 
-#for file in os.listdir(copied_folder):
-#    if '.zip' in file:
-#        file_path = os.path.join(copied_folder, file)
-#        with zipfile.ZipFile(file_path) as zf:
-#            for target_file in file_list:
-#                if target_file in zf.namelist():
-#                    target_name = (os.path.splitext(target_file)[0]+ '1' + ".xml")
-#                    target_path = os.path.join(extracted_folder, target_name)
-##                    print(target_name)
-##                    print(target_path)
-#                    with open(target_path, 'w') as f:
-#                        f.write(zf.read(target_file))
