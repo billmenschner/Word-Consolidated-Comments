@@ -52,6 +52,7 @@ extracted_folder = copied_folder + '/Extracted'
 #files from the zip files into the new folders.
 pulled_text = {}
 pulled_comments = {}
+namespace = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
 
 for file in os.listdir(copied_folder):
     if '.zip' in file:
@@ -68,16 +69,55 @@ for file in os.listdir(copied_folder):
         
         #Extract text from document based on Comment ID
         
+#        text_commentId = ''
+#        document_text = ''
+#        
+#        for element in document_root.iter():
+#            if element in document_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t'):
+#                document_text += element.text
+#            elif element in document_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}commentRangeStart'):
+#                text_commentId = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}id')
+#                document_text = ''
+#            elif element in document_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}commentRangeEnd'):
+#                pulled_text[text_commentId] = document_text
+#        
+#        #Extract Comment ID, comment, and author from comments.xml. Start running count
+#        #that gets increased with each comment tag.
+#        
+#        comment_number = 0
+#        commentId = ''
+#        comment_text = ''
+#        author = ''
+#        
+#        for element in comments_root.iter():
+#            if element in comments_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}comment'):
+#                if comment_number == 0:
+#                    commentId = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}id')
+#                    author = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}author')
+#                    comment_number += 1
+#                else:
+#                    pulled_comments[comment_number] = commentId, author, comment_text, pulled_text[commentId]
+#                    comment_number +=1
+#                    commentId = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}id')
+#                    author = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}author')
+#                    comment_text = ''
+#            elif element in comments_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t'):
+#                comment_text += element.text
+        
+
+#Testing copying and pasting info from files.
+        #Extract text from document based on Comment ID
+        
         text_commentId = ''
         document_text = ''
         
         for element in document_root.iter():
-            if element in document_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t'):
+            if namespace + 't' == element.tag:
                 document_text += element.text
-            elif element in document_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}commentRangeStart'):
-                text_commentId = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}id')
+            elif namespace + 'commentRangeStart' == element.tag:
+                text_commentId = element.get(namespace + 'id')
                 document_text = ''
-            elif element in document_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}commentRangeEnd'):
+            elif namespace + 'commentRangeEnd' == element.tag:
                 pulled_text[text_commentId] = document_text
         
         #Extract Comment ID, comment, and author from comments.xml. Start running count
@@ -89,22 +129,21 @@ for file in os.listdir(copied_folder):
         author = ''
         
         for element in comments_root.iter():
-            if element in comments_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}comment'):
+            if namespace + 'comment' == element.tag:
                 if comment_number == 0:
-                    commentId = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}id')
-                    author = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}author')
+                    commentId = element.get(namespace + 'id')
+                    author = element.get(namespace + 'author')
                     comment_number += 1
                 else:
-                    pulled_comments[comment_number] = commentId, author, comment_text, pulled_text[commentId]
+                    try:
+                        pulled_comments[comment_number] = commentId, author, comment_text, pulled_text[commentId]
+                    except KeyError:
+                        pulled_comments[comment_number] = commentId, author, comment_text, "This comment was not attached to any text"
                     comment_number +=1
-                    commentId = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}id')
-                    author = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}author')
+                    commentId = element.get(namespace + 'id')
+                    author = element.get(namespace + 'author')
                     comment_text = ''
-            elif element in comments_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t'):
-                comment_text += element.text
-        
-
-#Testing copying and pasting info from files.
-        
+            elif namespace + 't' == element.tag:
+                comment_text += element.text        
 
 
