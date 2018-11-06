@@ -7,6 +7,7 @@ import os, shutil, tkinter as tk, glob, re, zipfile
 from tkinter import filedialog
 from pathlib import Path
 from lxml import etree
+from roman import toRoman
 
 #Start by having the user select the directory where the files are located
 root = tk.Tk()
@@ -53,6 +54,8 @@ extracted_folder = copied_folder + '/Extracted'
 pulled_text = {}
 pulled_comments = {}
 namespace = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+comment_number = 0
+
 
 for file in os.listdir(copied_folder):
     if '.zip' in file:
@@ -61,55 +64,34 @@ for file in os.listdir(copied_folder):
         extracted_file = zipfile.ZipFile(copied_folder + '/' + file)
         document = extracted_file.extract('word/document.xml', new_folder)
         comments = extracted_file.extract('word/comments.xml', new_folder)
+
         #Parse both the documents and comments documents and create the dictionary
         #that will hold all of the information taken from the documents.
         
         document_root = etree.parse(document)
         comments_root = etree.parse(comments)
         
-        #Extract text from document based on Comment ID
-        
-#        text_commentId = ''
-#        document_text = ''
-#        
-#        for element in document_root.iter():
-#            if element in document_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t'):
-#                document_text += element.text
-#            elif element in document_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}commentRangeStart'):
-#                text_commentId = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}id')
-#                document_text = ''
-#            elif element in document_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}commentRangeEnd'):
-#                pulled_text[text_commentId] = document_text
-#        
-#        #Extract Comment ID, comment, and author from comments.xml. Start running count
-#        #that gets increased with each comment tag.
-#        
-#        comment_number = 0
-#        commentId = ''
-#        comment_text = ''
-#        author = ''
-#        
-#        for element in comments_root.iter():
-#            if element in comments_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}comment'):
-#                if comment_number == 0:
-#                    commentId = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}id')
-#                    author = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}author')
-#                    comment_number += 1
-#                else:
-#                    pulled_comments[comment_number] = commentId, author, comment_text, pulled_text[commentId]
-#                    comment_number +=1
-#                    commentId = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}id')
-#                    author = element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}author')
-#                    comment_text = ''
-#            elif element in comments_root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t'):
-#                comment_text += element.text
-        
+        #Find page offset so that page number can be approximated.
 
-#Testing copying and pasting info from files.
+        introduction = 0
+        current_page = 0
+        page_offset = 0
+        
+        for element in document_root.iter():
+            if namespace + 'lastRenderedPageBreak' == element.tag:
+                current_page += 1
+            elif namespace + 't' == element.tag:
+                if element.text == 'Introduction':
+                    introduction += 1
+                    if introduction == 2:
+                        page_offset = current_page
+                        break
+
         #Extract text from document based on Comment ID
         
         text_commentId = ''
         document_text = ''
+        page_number = 0
         
         for element in document_root.iter():
             if namespace + 't' == element.tag:
@@ -117,13 +99,18 @@ for file in os.listdir(copied_folder):
             elif namespace + 'commentRangeStart' == element.tag:
                 text_commentId = element.get(namespace + 'id')
                 document_text = ''
+            elif namespace + 'lastRenderedPageBreak' == element.tag:
+                page_number += 1
             elif namespace + 'commentRangeEnd' == element.tag:
-                pulled_text[text_commentId] = document_text
+                if page_number < page_offset:
+                    pulled_text[text_commentId] = document_text, toRoman(page_number)
+                else:
+                    pulled_text[text_commentId] = document_text, page_number - page_offset + 1
+
         
         #Extract Comment ID, comment, and author from comments.xml. Start running count
         #that gets increased with each comment tag.
         
-        comment_number = 0
         commentId = ''
         comment_text = ''
         author = ''
@@ -136,9 +123,9 @@ for file in os.listdir(copied_folder):
                     comment_number += 1
                 else:
                     try:
-                        pulled_comments[comment_number] = commentId, author, comment_text, pulled_text[commentId]
+                        pulled_comments[comment_number] = commentId, author, comment_text, pulled_text[commentId][0], pulled_text[commentId][1]
                     except KeyError:
-                        pulled_comments[comment_number] = commentId, author, comment_text, "This comment was not attached to any text"
+                        pulled_comments[comment_number] = commentId, author, comment_text, "NOTE: THIS COMMENT WAS NOT ATTACHED TO ANY TEXT"
                     comment_number +=1
                     commentId = element.get(namespace + 'id')
                     author = element.get(namespace + 'author')
